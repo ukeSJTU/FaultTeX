@@ -24,6 +24,7 @@ def latex_project(tmp_path: Path) -> Path:
 def mutation_data() -> Callable[..., dict[str, Any]]:
     def make_mutation(
         *,
+        mutation_id: str = "test_mutation",
         change_type: str = "text.replace",
         old_text: str = "10",
         new_text: str = "20",
@@ -50,6 +51,7 @@ def mutation_data() -> Callable[..., dict[str, Any]]:
             }
         return {
             "schema": 1,
+            "id": mutation_id,
             "entrypoint": entrypoint,
             "description": "A test mutation.",
             "label": "test_mutation",

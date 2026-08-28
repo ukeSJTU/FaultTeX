@@ -14,13 +14,14 @@ For each mutation, the runner is responsible for:
 
 1. Reading the mutation YAML.
 2. Validating mutation schema 1.
-3. Copying the original LaTeX project.
-4. Opening the explicitly named target file in the copy.
-5. Performing strict string matching.
-6. Applying one replacement or deletion.
-7. Saving the mutated source.
-8. Invoking the LaTeX compiler.
-9. Recording the mutation result and compilation log.
+3. Retaining the input mutation spec as an output artifact.
+4. Copying the original LaTeX project.
+5. Opening the explicitly named target file in the copy.
+6. Performing strict string matching.
+7. Applying one replacement or deletion.
+8. Saving the mutated source.
+9. Invoking the LaTeX compiler.
+10. Recording the mutation result and compilation log.
 
 The runner is not responsible for:
 
@@ -42,7 +43,8 @@ must not be enabled.
 The runner checks at least:
 
 - `schema` exists and equals `1`.
-- `entrypoint`, `description`, `label`, and `change` exist.
+- `id`, `entrypoint`, `description`, `label`, and `change` exist.
+- `id` uses the schema 1 mutation-ID syntax.
 - `entrypoint` is a nonempty path value.
 - `change.type` is supported.
 - `change.file` exists in the spec.
@@ -56,7 +58,13 @@ For `text.delete`, the operation fields are `file`, `before_context`, `text`, an
 
 Invalid input fails at the `schema` stage before the project is changed or compiled.
 
-### 3. Copy the Original Project
+### 3. Retain the Mutation Spec
+
+The runner preserves the input YAML bytes as `mutation.yaml` in the mutation output.
+This artifact is written before schema validation when the input file is readable, so a
+failed result can still identify the exact input that caused the failure.
+
+### 4. Copy the Original Project
 
 The runner creates an independent working copy of the complete original project. Every
 read-write operation after this point targets the copy.
@@ -69,7 +77,7 @@ The working copy's location and whether it is retained after execution are outpu
 decisions. They are not constraints on how the caller organizes the input project,
 mutation spec, or final PDF.
 
-### 4. Resolve Project Paths
+### 5. Resolve Project Paths
 
 `entrypoint` and `change.file` are interpreted relative to the copied project root. Both
 resolved paths must remain inside that root and refer to existing files.
@@ -94,12 +102,12 @@ The runner does not search for another entrypoint or target file when a specifie
 does not exist. It also does not search other files when the target file does not contain
 the mutation target.
 
-### 5. Read the Target File
+### 6. Read the Target File
 
 FaultTeX v0.1 reads target files as UTF-8 text. A read failure is reported without
 attempting to infer another encoding or target file.
 
-### 6. Perform Exact Matching
+### 7. Perform Exact Matching
 
 The runner constructs the operation's complete `needle` as specified in
 [mutation-spec.md](mutation-spec.md):
@@ -121,7 +129,7 @@ It counts exact occurrences in the named file:
 The runner does not normalize whitespace, select an occurrence, perform fuzzy matching,
 or continue searching elsewhere.
 
-### 7. Apply the Change
+### 8. Apply the Change
 
 For `text.replace`, the replacement is:
 
@@ -141,7 +149,7 @@ cleanup, or LaTeX repair.
 
 Read or write failures at this point fail at the `apply` stage.
 
-### 8. Compile the Mutated Project
+### 9. Compile the Mutated Project
 
 The runner enters the copied project directory and invokes ordinary `latexmk`. The
 recommended v0.1 invocation is:
@@ -163,12 +171,13 @@ when `latexmk` returns a nonzero exit code or when the expected PDF is not produ
 FaultTeX v0.1 does not depend on arXiv submission-tools, a remote compiler API,
 distributed workers, or a particular cloud provider.
 
-### 9. Save the Result
+### 10. Save the Result
 
 The runner writes one structured JSON result for every attempted mutation when the result
 destination is writable. A successful result identifies the compiled PDF. A failed
-result identifies the stage and error. A retained working copy and compilation log may
-be reported as additional artifacts when present.
+result identifies the stage and error. Every successfully parsed result records the
+mutation ID. The retained mutation spec, an optional working copy, and the compilation
+log are reported as artifacts when present.
 
 The output layout and result schema are defined in
 [cli-and-results.md](cli-and-results.md).
@@ -222,6 +231,12 @@ must not prevent remaining mutations from running.
 
 The batch command is an orchestration layer over the same single-mutation runner used by
 `apply`; it must not implement a separate matching, application, or compilation path.
+
+Before applying any mutation, batch performs an identity preflight over every discovered
+YAML file. It requires a syntactically valid YAML document with a valid `id`, and rejects
+duplicate IDs. An identity preflight failure prevents all compilation and produces a
+failed aggregate result. Other schema, file, matching, application, and compilation
+failures remain item-level failures after identity preflight succeeds.
 
 ## No Cross-Run Cache
 

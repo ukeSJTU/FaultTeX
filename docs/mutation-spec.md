@@ -67,6 +67,7 @@ A complete replacement mutation has this structure:
 
 ```yaml
 schema: 1
+id: abstract_claim_direction_001
 
 entrypoint: main.tex
 
@@ -92,7 +93,7 @@ change:
     on all benchmark datasets.
 ```
 
-The top-level fields defined by schema 1 are `schema`, `entrypoint`, `description`,
+The top-level fields defined by schema 1 are `schema`, `id`, `entrypoint`, `description`,
 `label`, and `change`.
 
 ## Top-Level Fields
@@ -105,6 +106,21 @@ schema: 1
 
 This identifies FaultTeX mutation schema 1. The v0.1 runner accepts only the integer
 value `1`; any other value is a schema validation failure.
+
+### `id`
+
+```yaml
+id: abstract_claim_direction_001
+```
+
+`id` is the stable identity of one mutation within the clean LaTeX project it targets.
+It must be unique among mutations executed together for that project. Moving or renaming
+the YAML file does not change the mutation ID.
+
+Schema 1 IDs contain 1 to 64 lowercase ASCII letters, digits, underscores, or hyphens,
+and begin with a letter or digit. This makes an ID safe to use as a batch artifact
+directory name. The runner does not derive an ID from the filename, `label`, mutation
+content, or batch position.
 
 ### `entrypoint`
 
@@ -261,6 +277,7 @@ explicit part of validation.
 
 ```yaml
 schema: 1
+id: delete_abstract_claim_001
 
 entrypoint: main.tex
 
@@ -381,19 +398,21 @@ mutation count. For example:
 > of each pair so that they conflict or no longer match. Produce one FaultTeX mutation
 > YAML file for each mutation.
 
-The expected output is a set of independent YAML files. Their filenames and directories
-are chosen by the caller and carry no schema-level identity or execution semantics.
+The expected output is a set of independent YAML files. Every file declares its own
+project-scoped `id`. Filenames and directories are chosen by the caller and carry no
+identity or execution semantics.
 
 An agent should:
 
 1. Read the main file and files introduced through `\input` and `\include`.
-2. Set `entrypoint` to the project-relative main `.tex` file.
-3. Identify candidate claims and their evidence.
-4. Decide whether to modify the claim or the evidence.
-5. Produce semantically plausible and syntactically valid replacement LaTeX.
-6. Copy exact before, target, and after source from the target file.
-7. Verify that the complete `needle` occurs exactly once in that file.
-8. Generate one mutation per YAML file.
+2. Assign an ID that is unique within the clean paper project.
+3. Set `entrypoint` to the project-relative main `.tex` file.
+4. Identify candidate claims and their evidence.
+5. Decide whether to modify the claim or the evidence.
+6. Produce semantically plausible and syntactically valid replacement LaTeX.
+7. Copy exact before, target, and after source from the target file.
+8. Verify that the complete `needle` occurs exactly once in that file.
+9. Generate one mutation per YAML file.
 
 An agent must not:
 
@@ -421,6 +440,7 @@ the project; see [cli-and-results.md](cli-and-results.md).
 
 ```yaml
 schema: 1
+id: reverse_abstract_claim_001
 
 entrypoint: main.tex
 
@@ -451,6 +471,7 @@ change:
 
 ```yaml
 schema: 1
+id: corrupt_results_accuracy_001
 
 entrypoint: main.tex
 
@@ -481,6 +502,7 @@ change:
 
 ```yaml
 schema: 1
+id: change_significance_001
 
 entrypoint: main.tex
 
@@ -511,6 +533,7 @@ change:
 
 ```yaml
 schema: 1
+id: delete_abstract_result_001
 
 entrypoint: main.tex
 
@@ -537,6 +560,7 @@ change:
 
 ```yaml
 schema: 1
+id: delete_supporting_evidence_001
 
 entrypoint: main.tex
 

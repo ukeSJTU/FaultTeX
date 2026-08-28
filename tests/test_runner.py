@@ -50,14 +50,21 @@ def test_run_mutation_writes_success_artifacts_and_preserves_original(
 
     assert isinstance(result, SuccessfulMutationResult)
     assert (output / "main.pdf").is_file()
+    assert (output / "mutation.yaml").read_bytes() == mutation.read_bytes()
     assert (output / "compile.log").read_text() == "compiled\n"
     assert "The score is 20." in (output / "source/main.tex").read_text()
     assert (latex_project / "main.tex").read_text(encoding="utf-8") == original
     stored = json.loads((output / "result.json").read_text())
     assert stored == {
         "schema": 1,
+        "id": "test_mutation",
         "status": "success",
-        "artifacts": {"pdf": "main.pdf", "log": "compile.log", "source": "source"},
+        "artifacts": {
+            "mutation": "mutation.yaml",
+            "pdf": "main.pdf",
+            "log": "compile.log",
+            "source": "source",
+        },
     }
 
 
@@ -70,7 +77,10 @@ def test_run_mutation_records_schema_failure(tmp_path: Path, latex_project: Path
 
     assert isinstance(result, FailedMutationResult)
     assert result.stage == "schema"
-    assert json.loads((output / "result.json").read_text())["stage"] == "schema"
+    stored = json.loads((output / "result.json").read_text())
+    assert stored["stage"] == "schema"
+    assert stored["artifacts"] == {"mutation": "mutation.yaml"}
+    assert (output / "mutation.yaml").read_bytes() == mutation.read_bytes()
     assert not (output / "compile.log").exists()
 
 

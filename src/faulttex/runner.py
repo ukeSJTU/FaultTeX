@@ -7,7 +7,13 @@ from typing import cast
 from pydantic import BaseModel
 
 from .compiler import Compiler, LatexmkCompiler
-from .core import apply_change, inspect_mutation, load_mutation, resolve_project_root
+from .core import (
+    apply_change,
+    inspect_mutation,
+    load_mutation,
+    load_mutation_id,
+    resolve_project_root,
+)
 from .errors import FaultTexError
 from .models import (
     ArtifactPaths,
@@ -17,6 +23,7 @@ from .models import (
 )
 
 RESULT_NAME = "result.json"
+MUTATION_NAME = "mutation.yaml"
 LOG_NAME = "compile.log"
 SOURCE_NAME = "source"
 
@@ -37,7 +44,7 @@ def _remove_path(path: Path) -> None:
 
 def _previous_artifacts(output: Path) -> set[Path]:
     result_path = output / RESULT_NAME
-    paths = {result_path, output / LOG_NAME, output / SOURCE_NAME}
+    paths = {result_path, output / MUTATION_NAME, output / LOG_NAME, output / SOURCE_NAME}
     if not result_path.is_file():
         return paths
     try:
@@ -103,6 +110,20 @@ def _retain_source(workspace: Path, output: Path) -> None:
         raise FaultTexError("output", f"Could not retain mutated source: {exc}") from exc
 
 
+def _retain_mutation(source: bytes, output: Path) -> None:
+    destination = output / MUTATION_NAME
+    temporary = destination.with_name(f".{destination.name}.tmp")
+    try:
+        temporary.write_bytes(source)
+        temporary.replace(destination)
+    except OSError as exc:
+        try:
+            temporary.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise FaultTexError("output", f"Could not retain mutation spec: {exc}") from exc
+
+
 def run_mutation(
     project: Path,
     mutation_path: Path,
@@ -112,44 +133,60 @@ def run_mutation(
     overwrite: bool = False,
     compiler: Compiler | None = None,
 ) -> MutationResult:
+    mutation_source: bytes | None = None
+    source_failure: FaultTexError | None = None
+    try:
+        mutation_source = mutation_path.read_bytes()
+    except OSError as exc:
+        source_failure = FaultTexError(
+            "schema", f"Could not read mutation spec {mutation_path}: {exc}"
+        )
+
     output_root = prepare_output(output, overwrite)
     artifacts = ArtifactPaths()
+    mutation_id: str | None = None
     workspace: Path | None = None
     temporary: tempfile.TemporaryDirectory[str] | None = None
-    failure: FaultTexError | None = None
+    failure = source_failure
 
     try:
-        spec = load_mutation(mutation_path)
-        project_root = resolve_project_root(project)
-        inspect_mutation(project_root, spec)
-        temporary = tempfile.TemporaryDirectory(prefix="faulttex-")
-        workspace = Path(temporary.name) / "project"
-        try:
-            shutil.copytree(project_root, workspace)
-        except OSError as exc:
-            raise FaultTexError("apply", f"Could not copy LaTeX project: {exc}") from exc
+        if mutation_source is not None:
+            _retain_mutation(mutation_source, output_root)
+            artifacts.mutation = MUTATION_NAME
+        if failure is None:
+            retained_mutation = output_root / MUTATION_NAME
+            mutation_id = load_mutation_id(retained_mutation)
+            spec = load_mutation(retained_mutation)
+            project_root = resolve_project_root(project)
+            inspect_mutation(project_root, spec)
+            temporary = tempfile.TemporaryDirectory(prefix="faulttex-")
+            workspace = Path(temporary.name) / "project"
+            try:
+                shutil.copytree(project_root, workspace)
+            except OSError as exc:
+                raise FaultTexError("apply", f"Could not copy LaTeX project: {exc}") from exc
 
-        inspection = apply_change(workspace, spec)
-        log_path = output_root / LOG_NAME
-        selected_compiler = compiler or LatexmkCompiler()
-        try:
-            compiled_pdf = selected_compiler.compile(
-                workspace,
-                Path(spec.entrypoint),
-                log_path,
-            )
-        finally:
-            if log_path.is_file():
-                artifacts.log = LOG_NAME
+            inspection = apply_change(workspace, spec)
+            log_path = output_root / LOG_NAME
+            selected_compiler = compiler or LatexmkCompiler()
+            try:
+                compiled_pdf = selected_compiler.compile(
+                    workspace,
+                    Path(spec.entrypoint),
+                    log_path,
+                )
+            finally:
+                if log_path.is_file():
+                    artifacts.log = LOG_NAME
 
-        pdf_name = inspection.entrypoint.stem + ".pdf"
-        pdf_output = output_root / pdf_name
-        try:
-            _remove_path(pdf_output)
-            shutil.copy2(compiled_pdf, pdf_output)
-        except OSError as exc:
-            raise FaultTexError("output", f"Could not preserve compiled PDF: {exc}") from exc
-        artifacts.pdf = pdf_name
+            pdf_name = inspection.entrypoint.stem + ".pdf"
+            pdf_output = output_root / pdf_name
+            try:
+                _remove_path(pdf_output)
+                shutil.copy2(compiled_pdf, pdf_output)
+            except OSError as exc:
+                raise FaultTexError("output", f"Could not preserve compiled PDF: {exc}") from exc
+            artifacts.pdf = pdf_name
     except FaultTexError as exc:
         failure = exc
     finally:
@@ -164,9 +201,11 @@ def run_mutation(
 
     result: MutationResult
     if failure is None:
-        result = SuccessfulMutationResult(artifacts=artifacts)
+        assert mutation_id is not None
+        result = SuccessfulMutationResult(id=mutation_id, artifacts=artifacts)
     else:
         result = FailedMutationResult(
+            id=mutation_id,
             stage=failure.stage,
             error=str(failure),
             artifacts=artifacts,

@@ -50,9 +50,10 @@ complex LaTeX semantic parsing or automatic layout analysis.
 
 ### One Mutation File Describes One Mutation
 
-Each mutation spec file describes one independent mutation. A spec's path and filename
-are organizational choices made by the caller; they do not define the mutation's
-identity or output location.
+Each mutation spec file describes one independent mutation and declares a stable ID that
+is unique within the clean project it targets. A spec's path and filename remain
+organizational choices made by the caller; they do not define its identity or output
+location.
 
 Multiple specs may target the same original LaTeX project, but they do not build on one
 another. Every execution starts from the original clean project:

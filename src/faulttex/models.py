@@ -3,6 +3,14 @@ from typing import Annotated, ClassVar, Literal
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 NonEmptyString = Annotated[str, StringConstraints(min_length=1)]
+MutationId = Annotated[
+    str,
+    StringConstraints(
+        min_length=1,
+        max_length=64,
+        pattern=r"^[a-z0-9][a-z0-9_-]*$",
+    ),
+]
 
 
 class StrictModel(BaseModel):
@@ -31,13 +39,21 @@ Change = Annotated[TextReplaceChange | TextDeleteChange, Field(discriminator="ty
 
 class MutationSpec(StrictModel):
     schema_version: Literal[1] = Field(alias="schema")
+    id: MutationId
     entrypoint: NonEmptyString
     description: NonEmptyString
     label: NonEmptyString
     change: Change
 
 
+class MutationIdentity(BaseModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="ignore", strict=True)
+
+    id: MutationId
+
+
 class ArtifactPaths(StrictModel):
+    mutation: str | None = None
     pdf: str | None = None
     log: str | None = None
     source: str | None = None
@@ -45,12 +61,14 @@ class ArtifactPaths(StrictModel):
 
 class SuccessfulMutationResult(StrictModel):
     schema_version: Literal[1] = Field(default=1, alias="schema")
+    id: MutationId
     status: Literal["success"] = "success"
     artifacts: ArtifactPaths
 
 
 class FailedMutationResult(StrictModel):
     schema_version: Literal[1] = Field(default=1, alias="schema")
+    id: MutationId | None = None
     status: Literal["failed"] = "failed"
     stage: Literal["schema", "file", "match", "apply", "compile", "output"]
     error: str
@@ -60,17 +78,27 @@ class FailedMutationResult(StrictModel):
 MutationResult = SuccessfulMutationResult | FailedMutationResult
 
 
-class BatchRunResult(StrictModel):
-    id: str
-    mutation: str
+class BatchMutationResult(StrictModel):
+    id: MutationId
+    input: str
     result: str
     status: Literal["success", "failed"]
 
 
-class BatchResult(StrictModel):
+class CompletedBatchResult(StrictModel):
     schema_version: Literal[1] = Field(default=1, alias="schema")
     status: Literal["success", "partial_failure"]
     total: int
     succeeded: int
     failed: int
-    runs: list[BatchRunResult]
+    mutations: list[BatchMutationResult]
+
+
+class FailedBatchResult(StrictModel):
+    schema_version: Literal[1] = Field(default=1, alias="schema")
+    status: Literal["failed"] = "failed"
+    stage: Literal["schema"] = "schema"
+    error: str
+
+
+BatchResult = CompletedBatchResult | FailedBatchResult

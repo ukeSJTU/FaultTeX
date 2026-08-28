@@ -6,7 +6,7 @@ import yaml
 from pydantic import ValidationError
 
 from .errors import FaultTexError
-from .models import MutationSpec, TextDeleteChange, TextReplaceChange
+from .models import MutationIdentity, MutationSpec, TextDeleteChange, TextReplaceChange
 
 
 @dataclass(frozen=True, slots=True)
@@ -18,14 +18,25 @@ class MutationInspection:
     occurrences: int
 
 
-def load_mutation(path: Path) -> MutationSpec:
+def _load_yaml(path: Path) -> Any:
     try:
-        raw: Any = yaml.safe_load(path.read_text(encoding="utf-8"))
+        return yaml.safe_load(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError) as exc:
         raise FaultTexError("schema", f"Could not read mutation spec {path}: {exc}") from exc
     except yaml.YAMLError as exc:
         raise FaultTexError("schema", f"Invalid mutation YAML in {path}: {exc}") from exc
 
+
+def load_mutation_id(path: Path) -> str:
+    raw = _load_yaml(path)
+    try:
+        return MutationIdentity.model_validate(raw).id
+    except ValidationError as exc:
+        raise FaultTexError("schema", f"Invalid mutation identity in {path}: {exc}") from exc
+
+
+def load_mutation(path: Path) -> MutationSpec:
+    raw = _load_yaml(path)
     try:
         return MutationSpec.model_validate(raw)
     except ValidationError as exc:

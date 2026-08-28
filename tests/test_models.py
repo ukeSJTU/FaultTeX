@@ -17,6 +17,7 @@ def test_mutation_spec_parses_replace_discriminated_union(
     spec = MutationSpec.model_validate(mutation_data())
 
     assert spec.schema_version == 1
+    assert spec.id == "test_mutation"
     assert isinstance(spec.change, TextReplaceChange)
     assert spec.change.old_text == "10"
 
@@ -32,7 +33,15 @@ def test_mutation_spec_parses_delete_discriminated_union(
 
 @pytest.mark.parametrize(
     ("field", "value"),
-    [("schema", "1"), ("entrypoint", ""), ("description", ""), ("label", "")],
+    [
+        ("schema", "1"),
+        ("id", ""),
+        ("id", "UPPERCASE"),
+        ("id", "contains/slash"),
+        ("entrypoint", ""),
+        ("description", ""),
+        ("label", ""),
+    ],
 )
 def test_mutation_spec_rejects_invalid_top_level_values(
     mutation_data: Callable[..., dict[str, Any]], field: str, value: object

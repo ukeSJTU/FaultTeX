@@ -25,9 +25,11 @@ scientific defect.
 5. Use enough `before_context` and `after_context` to make the complete target unique.
    Start with concise context; expand it only when validation reports multiple matches.
    When validation reports zero matches, recopy the source rather than approximating it.
-6. Write the specs to the user's chosen destination. Filenames may be descriptive but
-   carry no schema or mutation-ID meaning.
-7. Run the bundled validator against every generated spec. Fix all schema, file, and
+6. Assign each spec a stable `id` that is unique within the clean paper project. Use a
+   lowercase ASCII slug containing only letters, digits, underscores, and hyphens; the
+   filename may be descriptive but carries no mutation-ID meaning.
+7. Write the specs to the user's chosen destination.
+8. Run the bundled validator against every generated spec. Fix all schema, file, and
    matching failures before reporting completion.
 
 Do not modify the clean LaTeX project. Do not run `faulttex apply` or compile PDFs unless
@@ -40,6 +42,7 @@ blocks (`|-`). A replacement has this shape:
 
 ```yaml
 schema: 1
+id: abstract_claim_direction_001
 entrypoint: main.tex
 description: >-
   Describe the requested change and its intended effect.
@@ -74,6 +77,10 @@ change:
 `label` describes the effect, not the edit operator. Prefer lowercase `snake_case`; use a
 plain label such as `requested_text_change` when the user requests an ordinary edit with
 no defect taxonomy.
+
+`id` identifies one mutation within the clean paper project. Keep it stable when moving
+or renaming the YAML file, and never infer it from the filename during validation or
+execution. The bundled validator rejects duplicate IDs when validating a directory.
 
 ## Validate Generated Specs
 

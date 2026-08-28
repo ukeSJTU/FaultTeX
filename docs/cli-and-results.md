@@ -51,7 +51,7 @@ Example:
 faulttex apply \
   /path/to/latex-project \
   /another/path/change.yaml \
-  --output /desired/run-output
+  --output /desired/mutation-output
 ```
 
 ### Arguments
@@ -65,7 +65,7 @@ meaning and are not used as a mutation ID.
 ### Options
 
 ```text
--o, --output PATH    Required output directory for this run.
+-o, --output PATH    Required output directory for this mutation.
 --keep-source        Retain the mutated project copy in the output.
 --overwrite          Replace existing FaultTeX-owned artifacts at the destination.
 ```
@@ -97,6 +97,7 @@ faulttex check /path/to/latex-project /another/path/change.yaml
 It verifies:
 
 - The YAML and schema are valid.
+- The mutation ID is valid.
 - `entrypoint` exists and remains inside the project.
 - `change.file` exists and remains inside the project.
 - The complete mutation `needle` occurs exactly once in `change.file`.
@@ -108,8 +109,9 @@ It verifies:
 ```
 
 By default it writes a concise human-readable result. With `--json`, stdout contains only
-the JSON result; diagnostic logging remains on stderr. `check` never writes an artifact
-directory.
+the JSON result, including the mutation ID; diagnostic logging remains on stderr. `check`
+never writes an artifact directory. Checking one file cannot establish whether its ID is
+unique within a larger collection; batch identity preflight performs that check.
 
 ## `batch`
 
@@ -158,11 +160,17 @@ inside `MUTATIONS_DIR`. With `--recursive`, it discovers them at every depth.
 
 Discovered specs are ordered lexicographically by their path relative to
 `MUTATIONS_DIR`. This ordering is deterministic and is used only for execution order and
-batch run IDs; the filename is not a semantic mutation ID. Non-YAML files are ignored.
-An empty discovery result is a batch failure.
+the order of entries in `batch-result.json`; the filename is not a mutation ID. Non-YAML
+files are ignored. An empty discovery result is a batch failure.
 
-Every discovered YAML is attempted. A schema, matching, application, or compilation
-failure in one item is recorded and does not prevent later items from running.
+Before execution, batch reads the ID from every discovered YAML and checks its syntax and
+uniqueness. Malformed YAML, a missing or invalid ID, or a duplicate ID fails identity
+preflight before any mutation is compiled. Batch writes a failed `batch-result.json` when
+the output destination remains writable.
+
+After identity preflight succeeds, every discovered YAML is attempted. Other schema,
+matching, application, or compilation failures are recorded per mutation and do not
+prevent later mutations from running.
 
 ### Reuse of Single-Mutation Execution
 
@@ -177,20 +185,19 @@ for each discovered mutation:
 
 Batch must not implement separate matching, mutation, or compilation logic.
 
-### Batch Run IDs
+### Mutation IDs
 
-After sorting, batch assigns six-digit sequential IDs beginning at `000001`:
+Each mutation spec declares a stable, project-scoped ID:
 
 ```text
-000001
-000002
-000003
-...
+replace_abstract_accuracy
+reverse_conclusion_direction
+delete_ablation_claim
 ```
 
-These IDs identify runs within one batch output and name their directories. They are not
-stored in mutation specs and are not derived from mutation filenames. `batch-result.json`
-records the mapping from each ID to its input spec.
+Batch uses these IDs to name directories below `mutations/`. It does not generate a run
+ID or persist a numeric ordinal. The ordered `mutations` array in `batch-result.json`
+preserves deterministic discovery and execution order.
 
 ### Progress Output
 
@@ -203,8 +210,8 @@ FaultTeX  [########------------]  347/1200  success=342 failed=5
 ```
 
 Progress is diagnostic output and is written to stderr so that stdout remains available
-for machine-readable output. Compiler output is captured in each run's `compile.log`
-rather than streamed into the progress display.
+for machine-readable output. Compiler output is captured in each mutation's
+`compile.log` rather than streamed into the progress display.
 
 `--quiet` hides the progress bar. `--verbose` may emit per-mutation start and completion
 details in addition to progress. Batch always prints or logs a final summary unless
@@ -221,6 +228,7 @@ A successful apply output is:
 
 ```text
 OUTPUT_DIR/
+├── mutation.yaml
 ├── <entrypoint-stem>.pdf
 ├── result.json
 ├── compile.log
@@ -230,28 +238,33 @@ OUTPUT_DIR/
 For example, `entrypoint: main.tex` produces `main.pdf`, while
 `entrypoint: manuscript.tex` produces `manuscript.pdf`.
 
-If execution fails before compilation, `compile.log` is absent. If compilation fails,
-the log and failed result are retained but the PDF is absent. `source/` is present only
-when requested and a working copy was created.
+`mutation.yaml` is a byte-for-byte copy of the input spec. If execution fails before
+compilation, `compile.log` is absent. If compilation fails, the mutation spec, log, and
+failed result are retained but the PDF is absent. `source/` is present only when
+requested and a working copy was created.
 
 ### Batch Output
 
-Each batch run directory has exactly the same artifact structure and result schema as an
-`apply` output:
+Each batch mutation directory has exactly the same artifact structure and result schema
+as an `apply` output:
 
 ```text
 BATCH_OUTPUT/
 ├── batch-result.json
-├── 000001/
-│   ├── main.pdf
-│   ├── result.json
-│   └── compile.log
-├── 000002/
-│   ├── main.pdf
-│   ├── result.json
-│   └── compile.log
-└── 000003/
-    └── result.json
+└── mutations/
+    ├── replace_abstract_accuracy/
+    │   ├── mutation.yaml
+    │   ├── main.pdf
+    │   ├── result.json
+    │   └── compile.log
+    ├── reverse_conclusion_direction/
+    │   ├── mutation.yaml
+    │   ├── main.pdf
+    │   ├── result.json
+    │   └── compile.log
+    └── delete_ablation_claim/
+        ├── mutation.yaml
+        └── result.json
 ```
 
 The actual PDF name in each directory follows that mutation spec's `entrypoint`. Because
@@ -268,8 +281,10 @@ because they contain author-edited multiline LaTeX.
 ```json
 {
   "schema": 1,
+  "id": "replace_abstract_accuracy",
   "status": "success",
   "artifacts": {
+    "mutation": "mutation.yaml",
     "pdf": "main.pdf",
     "log": "compile.log"
   }
@@ -281,8 +296,10 @@ If `--keep-source` is active, the result includes the retained source:
 ```json
 {
   "schema": 1,
+  "id": "replace_abstract_accuracy",
   "status": "success",
   "artifacts": {
+    "mutation": "mutation.yaml",
     "pdf": "main.pdf",
     "log": "compile.log",
     "source": "source"
@@ -297,10 +314,13 @@ Artifact paths are relative to the directory containing `result.json`.
 ```json
 {
   "schema": 1,
+  "id": "replace_abstract_accuracy",
   "status": "failed",
   "stage": "match",
   "error": "The complete target text occurred 0 times in sections/results.tex.",
-  "artifacts": {}
+  "artifacts": {
+    "mutation": "mutation.yaml"
+  }
 }
 ```
 
@@ -309,10 +329,12 @@ Artifact paths are relative to the directory containing `result.json`.
 ```json
 {
   "schema": 1,
+  "id": "replace_abstract_accuracy",
   "status": "failed",
   "stage": "compile",
   "error": "LaTeX compilation returned a non-zero exit code.",
   "artifacts": {
+    "mutation": "mutation.yaml",
     "log": "compile.log"
   }
 }
@@ -322,8 +344,8 @@ Failure-stage meanings are defined in [runner.md](runner.md).
 
 ## Batch Result
 
-`batch-result.json` summarizes the complete batch and maps sequential run IDs to input
-mutation paths and individual results:
+`batch-result.json` summarizes the complete batch and maps mutation IDs to input paths
+and individual results:
 
 ```json
 {
@@ -332,23 +354,23 @@ mutation paths and individual results:
   "total": 3,
   "succeeded": 2,
   "failed": 1,
-  "runs": [
+  "mutations": [
     {
-      "id": "000001",
-      "mutation": "replace-number.yaml",
-      "result": "000001/result.json",
+      "id": "replace_abstract_accuracy",
+      "input": "replace-number.yaml",
+      "result": "mutations/replace_abstract_accuracy/result.json",
       "status": "success"
     },
     {
-      "id": "000002",
-      "mutation": "reverse-conclusion.yaml",
-      "result": "000002/result.json",
+      "id": "reverse_conclusion_direction",
+      "input": "reverse-conclusion.yaml",
+      "result": "mutations/reverse_conclusion_direction/result.json",
       "status": "success"
     },
     {
-      "id": "000003",
-      "mutation": "delete-evidence.yaml",
-      "result": "000003/result.json",
+      "id": "delete_ablation_claim",
+      "input": "delete-claim.yaml",
+      "result": "mutations/delete_ablation_claim/result.json",
       "status": "failed"
     }
   ]
@@ -359,8 +381,18 @@ Mutation paths in `batch-result.json` are relative to `MUTATIONS_DIR`. Recursive
 therefore retain enough path information to distinguish equal filenames in different
 subdirectories.
 
-The aggregate status is `success` when every item succeeds and `partial_failure` when at
-least one item fails after discovery has begun.
+The aggregate status is `success` when every mutation succeeds and `partial_failure`
+when at least one mutation fails after identity preflight. An identity preflight failure
+has a smaller aggregate result because no mutation was executed:
+
+```json
+{
+  "schema": 1,
+  "status": "failed",
+  "stage": "schema",
+  "error": "Batch identity preflight failed: duplicate id 'claim_001': a.yaml, b.yaml"
+}
+```
 
 ## Exit Codes
 
@@ -380,7 +412,6 @@ code `1` after all items finish if any item failed.
 
 FaultTeX v0.1 results intentionally do not record:
 
-- A semantic mutation ID inferred from a spec filename.
 - SHA-256 hashes.
 - PDF page bounding boxes.
 - Compiler image digests.

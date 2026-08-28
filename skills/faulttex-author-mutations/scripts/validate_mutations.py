@@ -144,6 +144,19 @@ def main() -> int:
             }
         )
 
+    results_by_id: dict[str, list[dict[str, Any]]] = {}
+    for result in results:
+        mutation_id = result.get("id")
+        if result["status"] == "success" and isinstance(mutation_id, str):
+            results_by_id.setdefault(mutation_id, []).append(result)
+    for mutation_id, duplicates in results_by_id.items():
+        if len(duplicates) > 1:
+            paths = ", ".join(result["mutation"] for result in duplicates)
+            for result in duplicates:
+                result["status"] = "failed"
+                result["stage"] = "schema"
+                result["error"] = f"Duplicate mutation id {mutation_id!r}: {paths}"
+
     invalid = sum(result["status"] != "success" for result in results)
     summary: dict[str, Any] = {
         "status": "success" if invalid == 0 else "failed",

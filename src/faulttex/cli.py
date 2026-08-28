@@ -1,6 +1,5 @@
 import json
 import logging
-import re
 import shutil
 import sys
 from dataclasses import dataclass
@@ -11,9 +10,14 @@ from typing import Annotated, NoReturn
 import structlog
 import typer
 
-from .core import inspect_mutation, load_mutation
+from .core import inspect_mutation, load_mutation, load_mutation_id
 from .errors import FaultTexError
-from .models import BatchResult, BatchRunResult, FailedMutationResult
+from .models import (
+    BatchMutationResult,
+    CompletedBatchResult,
+    FailedBatchResult,
+    FailedMutationResult,
+)
 from .runner import RESULT_NAME, run_mutation, write_json_model
 
 app = typer.Typer(
@@ -30,6 +34,13 @@ logger = structlog.get_logger("faulttex")
 class CliState:
     verbose: bool
     quiet: bool
+
+
+@dataclass(frozen=True, slots=True)
+class BatchMutationInput:
+    id: str
+    path: Path
+    relative_path: str
 
 
 def _package_version() -> str:
@@ -136,6 +147,7 @@ def check_command(
             json.dumps(
                 {
                     "status": "success",
+                    "id": spec.id,
                     "file": inspection.target_relative.as_posix(),
                     "occurrences": inspection.occurrences,
                 },
@@ -143,7 +155,9 @@ def check_command(
             )
         )
     elif not state.quiet:
-        typer.echo(f"OK: target occurs exactly once in {inspection.target_relative.as_posix()}")
+        typer.echo(
+            f"OK {spec.id}: target occurs exactly once in {inspection.target_relative.as_posix()}"
+        )
     logger.debug("check_finished", status="success")
 
 
@@ -154,7 +168,7 @@ def apply_command(
     mutation: Annotated[Path, typer.Argument(help="Mutation YAML file.")],
     output: Annotated[
         Path,
-        typer.Option("--output", "-o", help="Artifact directory for this run."),
+        typer.Option("--output", "-o", help="Artifact directory for this mutation."),
     ],
     keep_source: Annotated[
         bool,
@@ -224,14 +238,49 @@ def _prepare_batch_output(output: Path, overwrite: bool) -> Path:
         if overwrite:
             aggregate = resolved / "batch-result.json"
             aggregate.unlink(missing_ok=True)
-            for child in resolved.iterdir():
-                if child.is_dir() and re.fullmatch(r"\d{6}", child.name):
-                    shutil.rmtree(child)
+            mutations = resolved / "mutations"
+            if mutations.is_dir() and not mutations.is_symlink():
+                shutil.rmtree(mutations)
+            elif mutations.exists() or mutations.is_symlink():
+                mutations.unlink()
     except FaultTexError:
         raise
     except OSError as exc:
         raise FaultTexError("output", f"Could not prepare batch output {output}: {exc}") from exc
     return resolved
+
+
+def _preflight_batch_identities(
+    mutation_root: Path, mutations: list[Path]
+) -> list[BatchMutationInput]:
+    inputs: list[BatchMutationInput] = []
+    errors: list[str] = []
+    paths_by_id: dict[str, list[str]] = {}
+
+    for mutation in mutations:
+        relative_path = mutation.relative_to(mutation_root).as_posix()
+        try:
+            mutation_id = load_mutation_id(mutation)
+        except FaultTexError as exc:
+            errors.append(f"{relative_path}: {exc}")
+            continue
+        inputs.append(
+            BatchMutationInput(
+                id=mutation_id,
+                path=mutation,
+                relative_path=relative_path,
+            )
+        )
+        paths_by_id.setdefault(mutation_id, []).append(relative_path)
+
+    for mutation_id, paths in paths_by_id.items():
+        if len(paths) > 1:
+            errors.append(f"duplicate id {mutation_id!r}: {', '.join(paths)}")
+
+    if errors:
+        detail = "; ".join(errors)
+        raise FaultTexError("schema", f"Batch identity preflight failed: {detail}")
+    return inputs
 
 
 @app.command("batch")
@@ -260,27 +309,43 @@ def batch_command(
     state = _state(ctx)
     try:
         mutation_root = mutations_dir.resolve(strict=True)
-        mutations = discover_mutations(mutation_root, recursive)
+        discovered = discover_mutations(mutation_root, recursive)
         output_root = _prepare_batch_output(output, overwrite)
     except FaultTexError as exc:
         _emit_domain_error(exc)
     except Exception as exc:
         _emit_internal_error(exc)
 
-    runs: list[BatchRunResult] = []
+    try:
+        mutations = _preflight_batch_identities(mutation_root, discovered)
+    except FaultTexError as exc:
+        try:
+            write_json_model(
+                output_root / "batch-result.json",
+                FailedBatchResult(error=str(exc)),
+            )
+        except FaultTexError as output_exc:
+            _emit_domain_error(output_exc)
+        _emit_domain_error(exc)
+    except Exception as exc:
+        _emit_internal_error(exc)
+
+    results: list[BatchMutationResult] = []
     succeeded = 0
     failed = 0
 
-    def process(index: int, mutation: Path) -> None:
+    def process(mutation: BatchMutationInput) -> None:
         nonlocal succeeded, failed
-        run_id = f"{index:06d}"
-        relative_mutation = mutation.relative_to(mutation_root).as_posix()
         if state.verbose:
-            logger.debug("batch_item_started", run_id=run_id, mutation=relative_mutation)
+            logger.debug(
+                "batch_item_started",
+                mutation_id=mutation.id,
+                mutation=mutation.relative_path,
+            )
         result = run_mutation(
             project,
-            mutation,
-            output_root / run_id,
+            mutation.path,
+            output_root / "mutations" / mutation.id,
             keep_source=keep_source,
             overwrite=False,
         )
@@ -290,48 +355,44 @@ def batch_command(
         else:
             succeeded += 1
             status = "success"
-        runs.append(
-            BatchRunResult(
-                id=run_id,
-                mutation=relative_mutation,
-                result=f"{run_id}/{RESULT_NAME}",
+        results.append(
+            BatchMutationResult(
+                id=mutation.id,
+                input=mutation.relative_path,
+                result=f"mutations/{mutation.id}/{RESULT_NAME}",
                 status=status,
             )
         )
         if state.verbose:
-            logger.debug("batch_item_finished", run_id=run_id, status=status)
+            logger.debug("batch_item_finished", mutation_id=mutation.id, status=status)
 
     try:
         if state.quiet:
-            for index, mutation in enumerate(mutations, start=1):
-                process(index, mutation)
+            for mutation in mutations:
+                process(mutation)
         else:
             with typer.progressbar(
                 mutations,
                 label="FaultTeX success=0 failed=0",
                 show_pos=True,
                 show_eta=True,
-                item_show_func=(
-                    lambda item: (
-                        item.relative_to(mutation_root).as_posix() if item is not None else ""
-                    )
-                ),
+                item_show_func=(lambda item: item.relative_path if item is not None else ""),
                 file=sys.stderr,
             ) as progress:
-                for index, mutation in enumerate(progress, start=1):
-                    process(index, mutation)
+                for mutation in progress:
+                    process(mutation)
                     progress.label = f"FaultTeX success={succeeded} failed={failed}"
     except FaultTexError as exc:
         _emit_domain_error(exc)
     except Exception as exc:
         _emit_internal_error(exc)
 
-    aggregate = BatchResult(
+    aggregate = CompletedBatchResult(
         status="success" if failed == 0 else "partial_failure",
-        total=len(runs),
+        total=len(results),
         succeeded=succeeded,
         failed=failed,
-        runs=runs,
+        mutations=results,
     )
     try:
         write_json_model(output_root / "batch-result.json", aggregate)
@@ -340,7 +401,7 @@ def batch_command(
 
     if not state.quiet:
         typer.echo(
-            f"completed: total={len(runs)} success={succeeded} failed={failed}",
+            f"completed: total={len(results)} success={succeeded} failed={failed}",
             err=True,
         )
     if failed:
