@@ -40,6 +40,10 @@ classifiers = [
 # ---- Main dependencies ----
 
 dependencies = [
+    "pydantic>=2.13.4",
+    "pyyaml>=6.0.3",
+    "structlog>=26.1.0",
+    "typer>=0.27.1",
 ]
 
 
