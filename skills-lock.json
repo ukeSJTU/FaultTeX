@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "skills": {
+    "latex-formatting": {
+      "source": "lingzhi227/agent-research-skills",
+      "sourceType": "github",
+      "skillPath": "skills/latex-formatting/SKILL.md",
+      "computedHash": "c54413ee387288bc8231462bee02e7e128a966c1ff1f2422f720c1a822ed8a66"
+    },
+    "pydantic": {
+      "source": "pydantic/skills",
+      "sourceType": "github",
+      "skillPath": "skills/pydantic/SKILL.md",
+      "computedHash": "2f523749fc2edc5cb3b73435a282373cd69209682be7992b6cde333f30d59254"
+    },
+    "python-testing-patterns": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "skillPath": "plugins/python-development/skills/python-testing-patterns/SKILL.md",
+      "computedHash": "1306eea409e7eff2288d7658806cb508f18339a0ee9a686d324a0fd2570eae55"
+    },
+    "typer": {
+      "source": "fastapi/typer",
+      "sourceType": "github",
+      "skillPath": "typer/.agents/skills/typer/SKILL.md",
+      "computedHash": "f6469c8b58adf1eb290610a01f57dca1fa4ae1d4aedd49e8ee9da871013b2938"
+    },
+    "uv": {
+      "source": "astral-sh/claude-code-plugins",
+      "sourceType": "github",
+      "skillPath": "plugins/astral/skills/uv/SKILL.md",
+      "computedHash": "b1ca9e9826d906f6ee6ea172da50018ec13bb622ac9ba7204bda8b10e7fc8d0a"
+    }
+  }
+}
