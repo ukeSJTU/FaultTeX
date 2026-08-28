@@ -1,0 +1,11 @@
+# Changes here will be overwritten by Copier. Do not edit manually.
+_commit: v0.5.0
+_src_path: gh:jlevy/simple-modern-uv
+package_author_email: uke_sjtu@sjtu.edu.cn
+package_author_name: ukeSJTU
+package_description: 'FaultTeX: Controlled Mutation of Scientific Papers'
+package_github_org: ukeSJTU
+package_license: MIT
+package_module: faulttex
+package_name: faulttex
+publish_to_pypi: false
