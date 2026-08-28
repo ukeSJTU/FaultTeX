@@ -221,6 +221,7 @@ FaultTeX v0.1 does not:
 - Provide an arXiv submission-tools compilation service.
 - Manage large-scale dataset storage or versioning.
 - Check paper copyright licenses automatically.
+- Reuse previous mutation outputs or mutable LaTeX build state across runs.
 
 These limitations are intentional. The v0.1 goal is a reliable minimal loop:
 

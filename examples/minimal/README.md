@@ -12,7 +12,7 @@ The specs demonstrate the operations supported by schema 1:
 - `mutations/reverse-conclusion.yaml` reverses the direction of the conclusion.
 - `mutations/delete-claim.yaml` removes a claim from the ablation study.
 
-Once the CLI is implemented, run these commands from the repository root:
+Run these commands from the repository root:
 
 ```bash
 uv run faulttex check \

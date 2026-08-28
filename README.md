@@ -12,8 +12,8 @@ AI-assisted scientific-paper understanding and evaluation. Within that project, 
 provides a fast way to generate large collections of controlled, independently mutated
 papers for research datasets and experiments.
 
-FaultTeX is currently being designed around a strict v0.1 workflow: exact raw-LaTeX
-matching, isolated mutations, explicit failures, and ordinary `latexmk` compilation.
+FaultTeX v0.1 provides a strict workflow based on exact raw-LaTeX matching, isolated
+mutations, explicit failures, and ordinary `latexmk` compilation.
 
 ## Technology Stack
 

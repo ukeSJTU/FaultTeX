@@ -223,6 +223,14 @@ must not prevent remaining mutations from running.
 The batch command is an orchestration layer over the same single-mutation runner used by
 `apply`; it must not implement a separate matching, application, or compilation path.
 
+## No Cross-Run Cache
+
+FaultTeX v0.1 creates a fresh working copy and invokes `latexmk` for every mutation. It
+does not treat an existing output as a cache hit, and batch items never share writable
+LaTeX auxiliary files. `latexmk` may manage dependencies and repeated compiler passes
+inside one working copy, but that state is discarded or retained only as that run's
+optional `source/` artifact.
+
 ## Strictness Guarantees
 
 The runner must never make a mutation appear successful by:

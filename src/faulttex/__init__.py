@@ -1,5 +1,22 @@
-__all__ = (  # noqa: F405
-    # TODO: Add all public symbols here.
-)
+from importlib.metadata import PackageNotFoundError, version
 
-from .faulttex import *  # noqa: F403
+from .cli import app, main
+from .core import apply_change, inspect_mutation, load_mutation
+from .models import MutationSpec
+from .runner import run_mutation
+
+try:
+    __version__ = version("faulttex")
+except PackageNotFoundError:
+    __version__ = "0+unknown"
+
+__all__ = (
+    "MutationSpec",
+    "__version__",
+    "app",
+    "apply_change",
+    "inspect_mutation",
+    "load_mutation",
+    "main",
+    "run_mutation",
+)
