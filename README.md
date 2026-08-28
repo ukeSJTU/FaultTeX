@@ -44,6 +44,22 @@ FaultTeX v0.1 uses a deliberately small Python stack:
 - [Installation](docs/installation.md): installing uv, Python, project dependencies, and
   a LaTeX toolchain.
 
+## Official Agent Skill
+
+FaultTeX includes
+[`faulttex-author-mutations`](skills/faulttex-author-mutations/SKILL.md), an official skill
+that helps coding agents create and validate mutation YAML files from a LaTeX project and
+a requested edit. Install it into the current project with the
+[skills CLI](https://github.com/vercel-labs/skills):
+
+```bash
+npx skills add ukeSJTU/FaultTeX --skill faulttex-author-mutations
+```
+
+Add `--global` to make the skill available across projects. After installation, invoke it
+as `$faulttex-author-mutations` and provide the LaTeX project plus the mutation you want.
+The bundled validator requires the `faulttex` command to be available on `PATH`.
+
 ## Working with a Coding Agent
 
 This repository includes [`AGENTS.md`](AGENTS.md), with the build, test, dependency,

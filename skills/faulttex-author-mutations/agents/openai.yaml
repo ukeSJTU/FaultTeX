@@ -1,0 +1,4 @@
+interface:
+  display_name: "FaultTeX Mutation Author"
+  short_description: "Create and validate exact LaTeX mutation specs"
+  default_prompt: "Use $faulttex-author-mutations to create and validate FaultTeX mutation YAML files for this LaTeX project."
