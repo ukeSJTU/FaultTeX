@@ -1,0 +1,26 @@
+schema: 1
+
+entrypoint: main.tex
+
+description: >
+  Reverse the conclusion so that it conflicts with the improvements reported in the
+  experiments section.
+
+label: direction_flip
+
+change:
+  type: text.replace
+  file: sections/conclusion.tex
+
+  before_context: |-
+    evidence aggregation \emph{
+
+  old_text: |-
+    improves
+
+  new_text: |-
+    reduces
+
+  after_context: |-
+    } verification performance and confidence
+    calibration.

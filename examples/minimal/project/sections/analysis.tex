@@ -1,0 +1,22 @@
+\section{Error Analysis and Limitations}
+
+We manually inspect 100 development examples for which CEA and mean pooling make
+different predictions. In 61 cases, CEA assigns less weight to a sentence that shares
+keywords with the claim but does not report the relevant experiment. Another 24 cases
+contain conflicting measurements from two abstracts; confidence calibration helps when
+one source states its experimental conditions more clearly. The remaining examples are
+split between annotation ambiguity and retrieval failures.
+
+CEA cannot recover evidence that is absent from the retrieved set. It also treats
+source confidence as a property learned from textual representations rather than from
+external information about venues, authors, or replication history. Consequently, a
+fluent but incorrect statement may still receive a high confidence score. These limits
+suggest that calibrated aggregation complements, but does not replace, careful evidence
+retrieval and provenance tracking.
+
+EvidenceBench is synthetic and substantially smaller than a production scientific
+corpus. The reported numbers should therefore be interpreted as controlled measurements
+of model behavior rather than estimates of real-world fact-checking performance. We do
+not evaluate multilingual claims, full-document retrieval, or evidence expressed only
+in figures. Extending the evaluation along these dimensions is necessary before using
+the method in a high-stakes review workflow.

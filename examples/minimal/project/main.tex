@@ -1,0 +1,37 @@
+\documentclass[11pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage[margin=1in]{geometry}
+\usepackage[hidelinks]{hyperref}
+
+\title{Calibrated Evidence Aggregation for Scientific Claim Verification}
+\author{Alex Chen \\ Department of Computer Science \\ Example University}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Scientific claim verification requires models to combine evidence from sources that
+vary in relevance and reliability. We introduce Calibrated Evidence Aggregation (CEA),
+a lightweight verifier that jointly estimates sentence relevance and source confidence
+before predicting whether a claim is supported. On EvidenceBench, CEA reaches an
+accuracy of $84.6\%$ while retaining competitive calibration error. Controlled
+experiments show that the proposed method improves verification accuracy when evidence
+sources disagree.
+\end{abstract}
+
+\input{sections/introduction}
+\input{sections/method}
+\input{sections/experiments}
+\input{sections/analysis}
+\input{sections/conclusion}
+
+\bibliographystyle{plain}
+\bibliography{references}
+
+\end{document}

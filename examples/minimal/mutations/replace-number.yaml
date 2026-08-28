@@ -1,0 +1,25 @@
+schema: 1
+
+entrypoint: main.tex
+
+description: >
+  Change the accuracy reported in the abstract from 84.6 percent to 74.6 percent while
+  leaving the result table unchanged.
+
+label: number_corruption
+
+change:
+  type: text.replace
+  file: main.tex
+
+  before_context: |-
+    accuracy of $
+
+  old_text: |-
+    84.6
+
+  new_text: |-
+    74.6
+
+  after_context: |-
+    \%$ while retaining competitive calibration error.

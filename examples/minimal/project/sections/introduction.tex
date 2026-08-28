@@ -1,0 +1,18 @@
+\section{Introduction}
+
+Automated claim verification has become an important component of fact-checking and
+scientific document analysis. Early systems retrieve textual evidence and predict
+whether it supports or refutes a claim~\cite{thorne2018fever}. Scientific verification
+adds further difficulty because evidence is distributed across abstracts, tables, and
+specialized terminology~\cite{wadden2020fact}.
+
+Most neural verifiers treat every retrieved sentence as equally trustworthy. This
+assumption is fragile when retrieval introduces topically related but irrelevant
+sentences, or when evidence comes from sources with different levels of reliability.
+We study whether explicit relevance and confidence estimates can make aggregation more
+robust without requiring a substantially larger language model.
+
+Our contributions are threefold. First, we introduce a calibrated aggregation module
+that separates sentence relevance from source confidence. Second, we evaluate the
+method under both standard and disagreement-heavy settings. Third, we provide ablations
+that isolate the contribution of each scoring component.

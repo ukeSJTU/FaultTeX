@@ -1,0 +1,24 @@
+schema: 1
+
+entrypoint: main.tex
+
+description: >
+  Remove the main claim about the source-calibration ablation result.
+
+label: claim_omission
+
+change:
+  type: text.delete
+  file: sections/experiments.tex
+
+  before_context: |-
+    We remove one component at a time and retrain the model under the same protocol.
+
+  text: |-
+
+    Removing source calibration decreases macro F1 by 3.8 points, indicating that
+    reliability weighting is essential when evidence sources disagree.
+
+  after_context: |-
+
+    Removing the relevance scorer produces a smaller but consistent decline of 1.6 points.

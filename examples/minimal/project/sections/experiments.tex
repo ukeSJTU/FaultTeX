@@ -1,0 +1,41 @@
+\section{Experiments}
+
+\subsection{Setup}
+
+We evaluate on EvidenceBench, a synthetic benchmark containing 12,000 scientific
+claims paired with abstracts from four research domains. The training, development, and
+test splits contain 8,000, 2,000, and 2,000 claims, respectively. We report accuracy,
+macro F1, and expected calibration error (ECE). All models use the same retrieved
+evidence and are trained with three random seeds.
+
+\subsection{Main Results}
+
+Table~\ref{tab:main-results} compares CEA with a claim-only classifier and a verifier
+that mean-pools all evidence representations. CEA obtains the strongest accuracy and
+macro F1 while reducing calibration error. The improvement is largest on the subset in
+which the top two evidence sources disagree.
+
+\begin{table}[ht]
+  \centering
+  \caption{Test performance on EvidenceBench. Higher accuracy and macro F1 are better;
+  lower ECE is better.}
+  \label{tab:main-results}
+  \begin{tabular}{lccc}
+    \toprule
+    Model & Accuracy (\%) & Macro F1 & ECE \\
+    \midrule
+    Claim only & 68.1 & 66.7 & 0.142 \\
+    Mean pooling & 80.3 & 79.5 & 0.091 \\
+    CEA & \textbf{84.6} & \textbf{83.9} & \textbf{0.047} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Ablation Study}
+
+We remove one component at a time and retrain the model under the same protocol.
+Removing source calibration decreases macro F1 by 3.8 points, indicating that
+reliability weighting is essential when evidence sources disagree.
+Removing the relevance scorer produces a smaller but consistent decline of 1.6 points.
+These results suggest that the two scores capture complementary properties of the
+retrieved evidence.

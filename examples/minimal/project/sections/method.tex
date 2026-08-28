@@ -1,0 +1,21 @@
+\section{Method}
+
+Let $c$ denote a scientific claim and let $E = \{e_1, \ldots, e_n\}$ be the evidence
+sentences returned by a retriever. An encoder maps each claim--evidence pair to a vector
+$h_i \in \mathbb{R}^d$. CEA assigns separate relevance and confidence scores:
+
+\begin{align}
+  r_i &= \sigma(w_r^\top h_i), \\
+  q_i &= \sigma(w_q^\top h_i), \\
+  \alpha_i &= \frac{\exp(r_i q_i / \tau)}
+  {\sum_{j=1}^{n} \exp(r_j q_j / \tau)},
+\end{align}
+
+where $\sigma$ is the logistic function and $\tau$ is a learned temperature. The final
+representation $z = \sum_i \alpha_i h_i$ is passed to a linear classifier that predicts
+\textsc{support}, \textsc{refute}, or \textsc{insufficient evidence}.
+
+We optimize cross-entropy for the verification label together with a calibration loss
+on held-out confidence targets. The auxiliary loss encourages the model to reduce the
+weight assigned to evidence that is relevant in topic but unreliable for the specific
+claim.
