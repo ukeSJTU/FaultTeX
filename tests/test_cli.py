@@ -3,11 +3,14 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+import pytest
 import yaml
 from typer.testing import CliRunner
 
 from faulttex.cli import app
 from faulttex.compiler import LatexmkCompiler
+from faulttex.core import AppliedChange
+from faulttex.models import MutationSpec
 
 runner = CliRunner()
 
@@ -23,6 +26,14 @@ def fake_compile(
     pdf = project / entrypoint.with_suffix(".pdf")
     pdf.write_bytes(b"%PDF-1.4\n% fake\n")
     return pdf
+
+
+@pytest.fixture(autouse=True)
+def stub_pdf_annotations(monkeypatch: Any) -> None:
+    def fake_annotate(applied: AppliedChange, spec: MutationSpec, pdf: Path) -> None:
+        del applied, spec, pdf
+
+    monkeypatch.setattr("faulttex.runner.annotate_mutation_pdf", fake_annotate)
 
 
 def write_mutation(path: Path, data: dict[str, Any]) -> None:

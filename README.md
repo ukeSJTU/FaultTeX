@@ -34,9 +34,10 @@ clean LaTeX project + mutation.yaml
                   ├─ copy project
                   ├─ match one exact target
                   ├─ apply one change
-                  └─ compile with latexmk
+                  ├─ compile with latexmk + SyncTeX
+                  └─ add native PDF annotations
                            ↓
-                 mutated PDF + result.json
+              annotated mutated PDF + result.json
 ```
 
 > [!IMPORTANT]
@@ -60,8 +61,8 @@ clean LaTeX project + mutation.yaml
 
 - [uv](https://docs.astral.sh/uv/) 0.12
 - Python 3.11 or newer
-- [`latexmk`](https://mg.readthedocs.io/latexmk.html) and the LaTeX packages required by
-  your paper
+- [`latexmk`](https://mg.readthedocs.io/latexmk.html), `synctex`, and the LaTeX packages
+  required by your paper
 - Git and Make
 
 FaultTeX currently runs from a source checkout. Clone the repository and install its
@@ -78,6 +79,7 @@ Verify the CLI and LaTeX toolchain:
 ```bash
 uv run faulttex --help
 latexmk --version
+synctex help
 ```
 
 See the [installation guide](docs/installation.md) for TeX distribution choices and
@@ -112,9 +114,11 @@ uv run faulttex apply \
   --output tmp/examples/minimal/replace-number
 ```
 
-FaultTeX writes the mutated PDF, the retained mutation, the compilation log, and
-`result.json` to the output directory. The source under `examples/minimal/project` remains
-unchanged.
+FaultTeX writes the mutated PDF with native annotations, the retained mutation, the
+compilation log, and `result.json` to the output directory. Replacement text has a green
+highlight and comment; a deletion has a red comment at the deletion point. The annotations
+are visible in PDF readers such as macOS Preview. The source under
+`examples/minimal/project` remains unchanged.
 
 To run all three mutations independently:
 
@@ -200,6 +204,9 @@ OUTPUT/
 └── source/            # only with --keep-source
 ```
 
+`main.pdf` is the ordinary mutated PDF artifact and also contains the native annotations;
+FaultTeX does not create a second annotated-PDF filename or require annotation CLI options.
+
 `result.json` is designed for downstream tooling:
 
 ```json
@@ -228,7 +235,8 @@ FaultTeX deliberately keeps its execution model narrow:
 - It edits only the explicitly named project-relative file.
 - It does not normalize whitespace, search other files, choose among matches, or repair
   LaTeX.
-- It invokes ordinary `latexmk -pdf` and records compilation failures.
+- It invokes ordinary `latexmk -pdf` with SyncTeX data, then adds and verifies native PDF
+  annotations without rewriting the LaTeX mutation.
 - Batch execution is sequential, deterministic, and non-cumulative.
 
 These constraints make every generated defect traceable. See the

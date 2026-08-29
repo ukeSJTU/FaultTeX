@@ -18,6 +18,17 @@ class MutationInspection:
     occurrences: int
 
 
+@dataclass(frozen=True, slots=True)
+class AppliedChange:
+    inspection: MutationInspection
+    start_offset: int
+    end_offset: int
+    start_line: int
+    start_column: int
+    end_line: int
+    end_column: int
+
+
 def _load_yaml(path: Path) -> Any:
     try:
         return yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -113,15 +124,37 @@ def inspect_mutation(project: Path, spec: MutationSpec) -> MutationInspection:
     )
 
 
-def apply_change(project: Path, spec: MutationSpec) -> MutationInspection:
+def _line_and_column(source: str, offset: int) -> tuple[int, int]:
+    return source.count("\n", 0, offset) + 1, offset - source.rfind("\n", 0, offset)
+
+
+def apply_change(project: Path, spec: MutationSpec) -> AppliedChange:
     inspection = inspect_mutation(project, spec)
     try:
         source = inspection.target.read_text(encoding="utf-8")
         needle, replacement = _needle_and_replacement(spec)
-        mutated = source.replace(needle, replacement, 1)
+        match_start = source.index(needle)
+        target_start = match_start + len(spec.change.before_context)
+        if isinstance(spec.change, TextReplaceChange):
+            target_end = target_start + len(spec.change.new_text)
+        else:
+            target_end = target_start
+        mutated = source[:match_start] + replacement + source[match_start + len(needle) :]
         inspection.target.write_text(mutated, encoding="utf-8")
     except (OSError, UnicodeError) as exc:
         raise FaultTexError(
             "apply", f"Could not update target file {spec.change.file}: {exc}"
         ) from exc
-    return inspection
+
+    start_line, start_column = _line_and_column(mutated, target_start)
+    final_character = target_start if target_end == target_start else target_end - 1
+    end_line, end_column = _line_and_column(mutated, final_character)
+    return AppliedChange(
+        inspection=inspection,
+        start_offset=target_start,
+        end_offset=target_end,
+        start_line=start_line,
+        start_column=start_column,
+        end_line=end_line,
+        end_column=end_column,
+    )

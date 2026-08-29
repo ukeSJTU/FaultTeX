@@ -1,6 +1,6 @@
 from typing import Literal
 
-FailureStage = Literal["schema", "file", "match", "apply", "compile", "output"]
+FailureStage = Literal["schema", "file", "match", "apply", "compile", "annotate", "output"]
 
 
 class FaultTexError(Exception):

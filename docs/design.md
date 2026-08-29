@@ -162,7 +162,9 @@ Mutated LaTeX Project
         ↓
 LaTeX Compiler
         ↓
-Mutated PDF + Mutation Result
+PDF Annotation Resolver
+        ↓
+Annotated Mutated PDF + Mutation Result
 ```
 
 ### Mutation Author
@@ -184,7 +186,7 @@ FactCC-style mutation program. Authoring rules and examples are included in
 
 The Mutation Runner is FaultTeX's core execution program. It validates a mutation,
 copies the clean project, changes one target file through strict string matching,
-invokes the compiler, and records the result.
+invokes the compiler, adds verified native PDF annotations, and records the result.
 
 The runner does not:
 
@@ -202,6 +204,14 @@ FaultTeX v0.1 uses ordinary `latexmk` compilation. It does not depend on an arXi
 compilation service, HTTP compilation API, distributed task queue, or specific cloud
 service. Additional compiler backends may be introduced later without changing the
 meaning of existing mutation specs.
+
+### PDF Annotation Resolver
+
+The resolver combines the exact applied source position, SyncTeX output, and PDF text
+geometry. It highlights rendered replacement text in green and places a provenance
+comment beside it. For a deletion, it places a red provenance comment at the resolved
+gap. It updates the normal PDF artifact in place and never injects annotation commands
+into the LaTeX source.
 
 ## Explicit Non-Goals for v0.1
 
@@ -261,6 +271,14 @@ FaultTeX v0.1 is complete when it satisfies the following criteria.
 - Read and validate the main `.tex` entrypoint from the mutation spec.
 - Preserve the generated PDF and compilation log.
 - Return a clear result when compilation fails.
+
+### PDF Annotations
+
+- Enable SyncTeX during compilation.
+- Add native annotations to the normal mutated PDF without changing its page geometry or
+  extracted text.
+- Fail explicitly instead of guessing when the rendered mutation target is missing or
+  ambiguous.
 
 ### Results
 

@@ -6,8 +6,10 @@ from typing import Any
 import pytest
 import yaml
 
+from faulttex.core import AppliedChange
 from faulttex.errors import FaultTexError
-from faulttex.models import FailedMutationResult, SuccessfulMutationResult
+from faulttex.models import FailedMutationResult, MutationSpec, SuccessfulMutationResult
+from faulttex.pdf_annotations import PdfAnnotationError
 from faulttex.runner import run_mutation
 
 
@@ -24,6 +26,14 @@ class FailingCompiler:
         del project, entrypoint
         log_path.write_text("compiler failed\n", encoding="utf-8")
         raise FaultTexError("compile", "LaTeX compilation returned exit code 1.")
+
+
+def successful_annotator(
+    applied: AppliedChange,
+    spec: MutationSpec,
+    pdf: Path,
+) -> None:
+    del applied, spec, pdf
 
 
 def write_mutation(path: Path, data: dict[str, Any]) -> None:
@@ -46,6 +56,7 @@ def test_run_mutation_writes_success_artifacts_and_preserves_original(
         output,
         keep_source=True,
         compiler=SuccessfulCompiler(),
+        annotator=successful_annotator,
     )
 
     assert isinstance(result, SuccessfulMutationResult)
@@ -154,7 +165,13 @@ def test_run_mutation_overwrite_preserves_unrelated_files(
     mutation = tmp_path / "mutation.yaml"
     output = tmp_path / "output"
     write_mutation(mutation, mutation_data())
-    run_mutation(latex_project, mutation, output, compiler=SuccessfulCompiler())
+    run_mutation(
+        latex_project,
+        mutation,
+        output,
+        compiler=SuccessfulCompiler(),
+        annotator=successful_annotator,
+    )
     (output / "unrelated.txt").write_text("keep", encoding="utf-8")
 
     result = run_mutation(
@@ -163,7 +180,42 @@ def test_run_mutation_overwrite_preserves_unrelated_files(
         output,
         overwrite=True,
         compiler=SuccessfulCompiler(),
+        annotator=successful_annotator,
     )
 
     assert isinstance(result, SuccessfulMutationResult)
     assert (output / "unrelated.txt").read_text() == "keep"
+
+
+def test_run_mutation_records_annotation_failure_and_preserves_compiled_pdf(
+    latex_project: Path,
+    tmp_path: Path,
+    mutation_data: Callable[..., dict[str, Any]],
+) -> None:
+    mutation = tmp_path / "mutation.yaml"
+    output = tmp_path / "output"
+    write_mutation(mutation, mutation_data())
+
+    def failing_annotator(
+        applied: AppliedChange,
+        spec: MutationSpec,
+        pdf: Path,
+    ) -> None:
+        del applied, spec, pdf
+        raise PdfAnnotationError("The rendered mutation target was ambiguous.")
+
+    result = run_mutation(
+        latex_project,
+        mutation,
+        output,
+        compiler=SuccessfulCompiler(),
+        annotator=failing_annotator,
+    )
+
+    assert isinstance(result, FailedMutationResult)
+    assert result.stage == "annotate"
+    assert result.artifacts.pdf == "main.pdf"
+    assert (output / "main.pdf").read_bytes() == b"%PDF-1.4\n% fake\n"
+    stored = json.loads((output / "result.json").read_text())
+    assert stored["stage"] == "annotate"
+    assert stored["artifacts"]["pdf"] == "main.pdf"

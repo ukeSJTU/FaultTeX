@@ -25,17 +25,20 @@ def test_inspect_mutation_finds_exactly_one_target(
 def test_apply_change_replaces_only_target(
     latex_project: Path, mutation_data: Callable[..., dict[str, Any]]
 ) -> None:
-    apply_change(latex_project, make_spec(mutation_data()))
+    applied = apply_change(latex_project, make_spec(mutation_data()))
 
     source = (latex_project / "main.tex").read_text(encoding="utf-8")
     assert "The score is 20." in source
     assert "A removable claim." in source
+    assert source[applied.start_offset : applied.end_offset] == "20"
+    assert (applied.start_line, applied.start_column) == (3, 14)
+    assert (applied.end_line, applied.end_column) == (3, 15)
 
 
 def test_apply_change_deletes_exact_text(
     latex_project: Path, mutation_data: Callable[..., dict[str, Any]]
 ) -> None:
-    apply_change(
+    applied = apply_change(
         latex_project,
         make_spec(mutation_data(change_type="text.delete")),
     )
@@ -43,6 +46,9 @@ def test_apply_change_deletes_exact_text(
     source = (latex_project / "main.tex").read_text(encoding="utf-8")
     assert "A removable claim." not in source
     assert "The score is 10." in source
+    assert applied.start_offset == applied.end_offset
+    assert (applied.start_line, applied.start_column) == (4, 1)
+    assert (applied.end_line, applied.end_column) == (4, 1)
 
 
 @pytest.mark.parametrize(("old_text", "occurrences"), [("missing", 0), ("", 2)])

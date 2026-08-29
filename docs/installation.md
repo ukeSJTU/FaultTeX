@@ -8,7 +8,8 @@ and an external LaTeX toolchain for compiling mutated projects.
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) in the version range
   accepted by `uv.toml`.
 - Python 3.11 or newer and earlier than Python 4. uv can install a compatible interpreter.
-- `latexmk` and the LaTeX packages required by the input paper, available on `PATH`.
+- `latexmk`, `synctex`, and the LaTeX packages required by the input paper, available on
+  `PATH`.
 - Git for cloning the repository.
 
 FaultTeX installs Python packages but does not install a TeX distribution. The exact
@@ -53,17 +54,20 @@ Install a TeX distribution appropriate for the operating system:
 - [MacTeX](https://www.tug.org/mactex/) on macOS.
 - [MiKTeX](https://miktex.org/download) on Windows and other supported platforms.
 
-Choose an installation that provides `latexmk` and the packages used by the target
-papers. Minimal TeX installations may require additional packages later.
+Choose an installation that provides `latexmk`, `synctex`, and the packages used by the
+target papers. Minimal TeX installations may require additional packages later.
 
 Verify that FaultTeX can find the compiler:
 
 ```bash
 latexmk --version
+synctex help
 ```
 
-FaultTeX v0.1 invokes `latexmk -pdf`, so the distribution must also provide a working PDF
-LaTeX engine and any bibliography or auxiliary tools required by the paper.
+FaultTeX v0.1 invokes `latexmk -pdf` with SyncTeX enabled, so the distribution must also
+provide a working PDF LaTeX engine and any bibliography or auxiliary tools required by
+the paper. The locked Python environment includes `pdfplumber` and `pypdf` for locating,
+writing, and verifying native PDF annotations.
 
 ## Set Up the Repository
 
@@ -107,8 +111,8 @@ maintained in [AGENTS.md](../AGENTS.md).
 If `uv` reports that its version is unsupported, install a version accepted by the
 `required-version` setting in `uv.toml`.
 
-If `latexmk` is not found, verify that the TeX distribution's binary directory is on
-`PATH` and restart the shell after installation.
+If `latexmk` or `synctex` is not found, verify that the TeX distribution's binary
+directory is on `PATH` and restart the shell after installation.
 
 If `latexmk` starts but a paper fails because a `.sty`, bibliography tool, font, or LaTeX
 package is missing, install that dependency through the selected TeX distribution. The

@@ -14,6 +14,7 @@ class LatexmkCompiler:
         command = [
             "latexmk",
             "-pdf",
+            "-synctex=1",
             "-interaction=nonstopmode",
             "-halt-on-error",
             entrypoint.as_posix(),

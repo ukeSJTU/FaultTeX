@@ -70,7 +70,7 @@ class FailedMutationResult(StrictModel):
     schema_version: Literal[1] = Field(default=1, alias="schema")
     id: MutationId | None = None
     status: Literal["failed"] = "failed"
-    stage: Literal["schema", "file", "match", "apply", "compile", "output"]
+    stage: Literal["schema", "file", "match", "apply", "compile", "annotate", "output"]
     error: str
     artifacts: ArtifactPaths
 

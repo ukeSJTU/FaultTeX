@@ -20,8 +20,9 @@ For each mutation, the runner is responsible for:
 6. Performing strict string matching.
 7. Applying one replacement or deletion.
 8. Saving the mutated source.
-9. Invoking the LaTeX compiler.
-10. Recording the mutation result and compilation log.
+9. Invoking the LaTeX compiler with SyncTeX enabled.
+10. Resolving the rendered mutation target and adding native PDF annotations.
+11. Recording the mutation result and compilation log.
 
 The runner is not responsible for:
 
@@ -157,6 +158,7 @@ recommended v0.1 invocation is:
 ```bash
 latexmk \
   -pdf \
+  -synctex=1 \
   -interaction=nonstopmode \
   -halt-on-error \
   <entrypoint>
@@ -171,7 +173,25 @@ when `latexmk` returns a nonzero exit code or when the expected PDF is not produ
 FaultTeX v0.1 does not depend on arXiv submission-tools, a remote compiler API,
 distributed workers, or a particular cloud provider.
 
-### 10. Save the Result
+### 10. Annotate the Mutated PDF
+
+After successful compilation, the runner uses the applied source position, SyncTeX, and
+exact PDF text matching to resolve the rendered mutation target. It then updates the
+compiled `<entrypoint-stem>.pdf` in place with native PDF annotations:
+
+- `text.replace` adds a green highlight over the rendered `new_text` and a green comment
+  containing the mutation ID, label, target file, old and new LaTeX, and description.
+- `text.delete` adds a red comment at the deletion point containing the same provenance
+  and the deleted LaTeX. Deleted content cannot itself be highlighted because it is not
+  present in the mutated PDF.
+
+This step does not wrap or otherwise modify the mutated LaTeX. There is no second
+annotated-PDF artifact and no annotation CLI switch. Before replacing the compiled PDF,
+the runner verifies page dimensions, extracted text, annotation types, names, and comment
+content. Missing, ambiguous, or unsupported rendered-text mappings fail at `annotate`
+rather than selecting a best-effort location.
+
+### 11. Save the Result
 
 The runner writes one structured JSON result for every attempted mutation when the result
 destination is writable. A successful result identifies the compiled PDF. A failed
@@ -206,6 +226,13 @@ The runner cannot read or write the source while applying the change.
 ### `compile`
 
 LaTeX compilation fails or does not produce the expected PDF.
+
+### `annotate`
+
+SyncTeX cannot locate a candidate page, the rendered target or deletion anchors are
+missing or ambiguous, a source fragment has no deterministic PDF-text mapping, or native
+annotation writing or verification fails. The unannotated compiled PDF is retained when
+available for diagnosis, but the mutation result remains failed.
 
 ### `output`
 
@@ -256,6 +283,7 @@ The runner must never make a mutation appear successful by:
 - Applying only part of a requested change.
 - Skipping a failed change.
 - Repairing the mutation spec or mutated LaTeX automatically.
+- Guessing an annotation location when rendered target resolution is ambiguous.
 
-If the runner cannot perform the requested operation exactly and compile its result, it
-records an explicit failure.
+If the runner cannot perform the requested operation exactly, compile it, and annotate
+the result, it records an explicit failure.

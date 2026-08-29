@@ -1,6 +1,7 @@
 import json
 import shutil
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
 from typing import cast
 
@@ -8,6 +9,7 @@ from pydantic import BaseModel
 
 from .compiler import Compiler, LatexmkCompiler
 from .core import (
+    AppliedChange,
     apply_change,
     inspect_mutation,
     load_mutation,
@@ -19,13 +21,17 @@ from .models import (
     ArtifactPaths,
     FailedMutationResult,
     MutationResult,
+    MutationSpec,
     SuccessfulMutationResult,
 )
+from .pdf_annotations import PdfAnnotationError, annotate_mutation_pdf
 
 RESULT_NAME = "result.json"
 MUTATION_NAME = "mutation.yaml"
 LOG_NAME = "compile.log"
 SOURCE_NAME = "source"
+
+PdfAnnotator = Callable[[AppliedChange, MutationSpec, Path], object]
 
 
 def _safe_artifact_path(output: Path, value: str) -> Path | None:
@@ -124,6 +130,14 @@ def _retain_mutation(source: bytes, output: Path) -> None:
         raise FaultTexError("output", f"Could not retain mutation spec: {exc}") from exc
 
 
+def _preserve_pdf(source: Path, destination: Path) -> None:
+    try:
+        _remove_path(destination)
+        shutil.copy2(source, destination)
+    except OSError as exc:
+        raise FaultTexError("output", f"Could not preserve compiled PDF: {exc}") from exc
+
+
 def run_mutation(
     project: Path,
     mutation_path: Path,
@@ -132,6 +146,7 @@ def run_mutation(
     keep_source: bool = False,
     overwrite: bool = False,
     compiler: Compiler | None = None,
+    annotator: PdfAnnotator | None = None,
 ) -> MutationResult:
     mutation_source: bytes | None = None
     source_failure: FaultTexError | None = None
@@ -166,7 +181,7 @@ def run_mutation(
             except OSError as exc:
                 raise FaultTexError("apply", f"Could not copy LaTeX project: {exc}") from exc
 
-            inspection = apply_change(workspace, spec)
+            applied = apply_change(workspace, spec)
             log_path = output_root / LOG_NAME
             selected_compiler = compiler or LatexmkCompiler()
             try:
@@ -179,13 +194,16 @@ def run_mutation(
                 if log_path.is_file():
                     artifacts.log = LOG_NAME
 
-            pdf_name = inspection.entrypoint.stem + ".pdf"
+            pdf_name = applied.inspection.entrypoint.stem + ".pdf"
             pdf_output = output_root / pdf_name
             try:
-                _remove_path(pdf_output)
-                shutil.copy2(compiled_pdf, pdf_output)
-            except OSError as exc:
-                raise FaultTexError("output", f"Could not preserve compiled PDF: {exc}") from exc
+                selected_annotator = annotator or annotate_mutation_pdf
+                selected_annotator(applied, spec, compiled_pdf)
+            except PdfAnnotationError as exc:
+                _preserve_pdf(compiled_pdf, pdf_output)
+                artifacts.pdf = pdf_name
+                raise FaultTexError("annotate", str(exc)) from exc
+            _preserve_pdf(compiled_pdf, pdf_output)
             artifacts.pdf = pdf_name
     except FaultTexError as exc:
         failure = exc

@@ -31,4 +31,6 @@ uv run faulttex batch \
 ```
 
 The example writes generated artifacts under `tmp/`, which the repository ignores.
-Running `apply` or `batch` must leave `project/main.tex` unchanged.
+Each generated `main.pdf` contains native mutation annotations: green highlight and a
+comment for replacements, or a red comment at a deletion point. They can be inspected in
+macOS Preview. Running `apply` or `batch` must leave `project/main.tex` unchanged.

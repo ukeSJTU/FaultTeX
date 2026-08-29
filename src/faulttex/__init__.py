@@ -1,7 +1,7 @@
 from importlib.metadata import PackageNotFoundError, version
 
 from .cli import app, main
-from .core import apply_change, inspect_mutation, load_mutation
+from .core import AppliedChange, apply_change, inspect_mutation, load_mutation
 from .models import MutationSpec
 from .runner import run_mutation
 
@@ -12,6 +12,7 @@ except PackageNotFoundError:
 
 __all__ = (
     "MutationSpec",
+    "AppliedChange",
     "__version__",
     "app",
     "apply_change",

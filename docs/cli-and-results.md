@@ -238,10 +238,17 @@ OUTPUT_DIR/
 For example, `entrypoint: main.tex` produces `main.pdf`, while
 `entrypoint: manuscript.tex` produces `manuscript.pdf`.
 
+The PDF itself contains native mutation annotations. Replacement text receives a green
+highlight and comment; deletions receive a red comment at the deletion point. These are
+standard PDF annotations viewable in readers such as macOS Preview. The CLI does not add
+annotation options or produce a separate `*.annotated.pdf` artifact.
+
 `mutation.yaml` is a byte-for-byte copy of the input spec. If execution fails before
 compilation, `compile.log` is absent. If compilation fails, the mutation spec, log, and
-failed result are retained but the PDF is absent. `source/` is present only when
-requested and a working copy was created.
+failed result are retained but the PDF is absent. If annotation fails after compilation,
+the unannotated compiled PDF is retained for diagnosis and the result records
+`stage: "annotate"`. `source/` is present only when requested and a working copy was
+created.
 
 ### Batch Output
 
@@ -335,6 +342,23 @@ Artifact paths are relative to the directory containing `result.json`.
   "error": "LaTeX compilation returned a non-zero exit code.",
   "artifacts": {
     "mutation": "mutation.yaml",
+    "log": "compile.log"
+  }
+}
+```
+
+### Annotation Failure
+
+```json
+{
+  "schema": 1,
+  "id": "replace_abstract_accuracy",
+  "status": "failed",
+  "stage": "annotate",
+  "error": "Rendered text '74.6' matched 0 times in SyncTeX candidate regions.",
+  "artifacts": {
+    "mutation": "mutation.yaml",
+    "pdf": "main.pdf",
     "log": "compile.log"
   }
 }

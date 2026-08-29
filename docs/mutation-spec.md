@@ -96,6 +96,12 @@ change:
 The top-level fields defined by schema 1 are `schema`, `id`, `entrypoint`, `description`,
 `label`, and `change`.
 
+Schema 1 deliberately has no `rendered_text` field. After compilation, FaultTeX derives
+the visible replacement text or deletion anchors conservatively from the existing raw
+LaTeX fields and combines them with SyncTeX. If that mapping is unsupported or ambiguous,
+annotation fails explicitly. A future schema version may add `rendered_text` and rendered
+before/after contexts for macro-heavy source without changing schema 1 matching semantics.
+
 ## Top-Level Fields
 
 ### `schema`
