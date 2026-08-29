@@ -106,3 +106,37 @@ change:
     assert len(highlights) == 1
     quad_points = cast(ArrayObject, highlights[0]["/QuadPoints"])
     assert len(quad_points) >= 16
+
+
+@pytest.mark.skipif(
+    shutil.which("latexmk") is None or shutil.which("synctex") is None,
+    reason="latexmk and synctex are required",
+)
+def test_math_times_replacement_produces_native_highlight(tmp_path: Path) -> None:
+    mutation = tmp_path / "math-times.yaml"
+    mutation.write_text(
+        r"""schema: 1
+id: replace_accuracy_with_multiplier
+entrypoint: main.tex
+description: Replace an accuracy value with a rendered multiplication claim.
+label: number_corruption
+change:
+  type: text.replace
+  file: main.tex
+  before_context: ''
+  old_text: 'accuracy of $84.6\%$'
+  new_text: 'accuracy is $2.5\times$ higher'
+  after_context: ' while retaining competitive calibration error.'
+""",
+        encoding="utf-8",
+    )
+
+    output = tmp_path / "output"
+    result = run_mutation(MINIMAL_EXAMPLE / "project", mutation, output)
+
+    assert isinstance(result, SuccessfulMutationResult)
+    annotations = _faulttex_annotations(output / "main.pdf")
+    assert [str(annotation["/Subtype"]) for _, annotation in annotations] == [
+        "/Highlight",
+        "/Text",
+    ]

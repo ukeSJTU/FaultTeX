@@ -98,9 +98,11 @@ The top-level fields defined by schema 1 are `schema`, `id`, `entrypoint`, `desc
 
 Schema 1 deliberately has no `rendered_text` field. After compilation, FaultTeX derives
 the visible replacement text or deletion anchors conservatively from the existing raw
-LaTeX fields and combines them with SyncTeX. If that mapping is unsupported or ambiguous,
-annotation fails explicitly. A future schema version may add `rendered_text` and rendered
-before/after contexts for macro-heavy source without changing schema 1 matching semantics.
+LaTeX fields and combines them with SyncTeX. The derivation handles a small deterministic
+subset, including `\times` as the rendered `×` symbol, and ignores layout whitespace added
+by PDF text extraction. If the mapping is unsupported or ambiguous, annotation fails
+explicitly. A future schema version may add `rendered_text` and rendered before/after
+contexts for macro-heavy source without changing schema 1 matching semantics.
 
 ## Top-Level Fields
 

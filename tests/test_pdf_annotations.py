@@ -1,5 +1,8 @@
+from typing import Any, cast
+
 import pytest
 
+from faulttex import pdf_annotations
 from faulttex.pdf_annotations import (
     PdfAnnotationError,
     latex_to_visible_text,
@@ -13,6 +16,7 @@ from faulttex.pdf_annotations import (
         ("74.6", "74.6"),
         (r"$74.6\%$", "74.6%"),
         (r"\emph{reduces}", "reduces"),
+        (r"$2.5\times$ speedup", "2.5× speedup"),
         (r"A~B \& C", "A B & C"),
         (
             "a claim is unsupported.\nAccuracy is $74.6\\%$.",
@@ -27,6 +31,33 @@ def test_latex_to_visible_text_handles_supported_subset(latex: str, visible: str
 def test_latex_to_visible_text_rejects_unmapped_commands() -> None:
     with pytest.raises(PdfAnnotationError, match="without a deterministic"):
         latex_to_visible_text(r"\frac{1}{2}")
+
+
+def test_find_rendered_matches_ignores_extraction_added_whitespace(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    candidate = "当注入比例达到 50% 时"
+    positions = tuple(
+        (1, None if character.isspace() else {"source_index": index})
+        for index, character in enumerate(candidate)
+    )
+
+    def fake_candidate_text(document: object, pages: object) -> object:
+        del document, pages
+        return candidate, positions
+
+    monkeypatch.setattr(pdf_annotations, "_candidate_text", fake_candidate_text)
+
+    matches = pdf_annotations._find_rendered_matches(  # pyright: ignore[reportPrivateUsage]
+        cast(Any, object()),
+        [1],
+        "当注入比例达到50%时",
+    )
+
+    assert len(matches) == 1
+    assert [character["source_index"] for _, character in matches[0].page_chars] == [
+        index for index, character in enumerate(candidate) if not character.isspace()
+    ]
 
 
 def test_parse_synctex_regions_converts_output_to_candidate_boxes() -> None:

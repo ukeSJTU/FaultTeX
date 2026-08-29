@@ -185,6 +185,12 @@ compiled `<entrypoint-stem>.pdf` in place with native PDF annotations:
   and the deleted LaTeX. Deleted content cannot itself be highlighted because it is not
   present in the mutated PDF.
 
+PDF text extraction may introduce layout whitespace that is absent from the source. The
+rendered-text matcher ignores that extracted whitespace while retaining each visible
+character's original page and geometry. It also recognizes deterministic mappings such as
+LaTeX `\times` to the rendered `×` symbol. These rules affect annotation placement only;
+source mutation matching remains byte-for-byte exact as described above.
+
 This step does not wrap or otherwise modify the mutated LaTeX. There is no second
 annotated-PDF artifact and no annotation CLI switch. Before replacing the compiled PDF,
 the runner verifies page dimensions, extracted text, annotation types, names, and comment

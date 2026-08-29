@@ -69,6 +69,7 @@ def latex_to_visible_text(value: str) -> str:
         visible = _SIMPLE_COMMAND.sub(r"\1", visible)
 
     replacements = {
+        r"\times": "×",
         r"\%": "%",
         r"\&": "&",
         r"\_": "_",
@@ -187,12 +188,22 @@ def _find_rendered_matches(
     search_text: str,
 ) -> tuple[RenderedMatch, ...]:
     candidate_text, positions = _candidate_text(document, pages)
+    # PDF extractors may add virtual layout whitespace that has no counterpart in the
+    # source. Remove it from the matching stream while keeping every remaining character
+    # paired with its original page and geometry.
+    normalized_text: list[str] = []
+    normalized_positions: list[tuple[int, Mapping[str, Any] | None]] = []
+    for character, position in zip(candidate_text, positions, strict=True):
+        if character.isspace():
+            continue
+        normalized_text.append(character)
+        normalized_positions.append(position)
+    candidate_text = "".join(normalized_text)
+    positions = tuple(normalized_positions)
+    search_text = "".join(character for character in search_text if not character.isspace())
+
     pattern_parts: list[str] = []
     for index, character in enumerate(search_text):
-        if character.isspace():
-            if not pattern_parts or pattern_parts[-1] != r"\s*":
-                pattern_parts.append(r"\s*")
-            continue
         pattern_parts.append(re.escape(character))
         if (
             character.isalnum()
@@ -201,7 +212,7 @@ def _find_rendered_matches(
         ):
             # PDF text extraction preserves TeX's discretionary line-break hyphen, so
             # a rendered word such as "reduces" may appear as "re-\nduces".
-            pattern_parts.append(r"(?:-\s*)?")
+            pattern_parts.append("-?")
     pattern = "".join(pattern_parts)
     matches: list[RenderedMatch] = []
     for match in re.finditer(pattern, candidate_text):
